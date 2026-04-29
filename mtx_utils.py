@@ -39,7 +39,7 @@ def get_det(matrix: np.ndarray, eps=1e-12):
     return det
 
 
-def cramer(A: np.ndarray, b: np.ndarray, eps=1e-3):
+def cramer_slau_solver(A: np.ndarray, b: np.ndarray, eps=1e-3):
     A = A.copy()
     b = b.copy()
 
@@ -62,5 +62,46 @@ def cramer(A: np.ndarray, b: np.ndarray, eps=1e-3):
         Ai = A.copy()
         Ai[:, i] = b
         x[i] = get_det(Ai, eps) / det_A
+
+    return x
+
+
+def lu_slau_solver(A, b):
+    n, m = A.shape
+
+    P = np.eye(n, dtype=float)
+
+    L = np.eye(n, dtype=float)
+    U = A.copy()
+    swap_count = 0
+
+    for col in range(n):
+        pivot_row = col + np.argmax(np.abs(U[col:, col]))
+
+        if np.isclose(U[pivot_row, col], 0.0):
+            raise ValueError("Матрица вырожденная: LU-разложение невозможно")
+
+        if pivot_row != col:
+            swap_count += 1
+            U[[col, pivot_row], :] = U[[pivot_row, col], :]
+            P[[col, pivot_row], :] = P[[pivot_row, col], :]
+
+            L[[col, pivot_row], :col] = L[[pivot_row, col], :col]
+
+        for row in range(col + 1, n):
+            factor = U[row, col] / U[col, col]
+            L[row, col] = factor
+            U[row, col:] -= factor * U[col, col:]
+
+    pb = P @ b
+
+    z = np.zeros(n, dtype=float)
+    for row in range(n):
+        z[row] = pb[row] - np.dot(L[row, :row], z[:row])
+
+    x = np.zeros(n, dtype=float)
+    for row in range(n - 1, -1, -1):
+        s = np.dot(U[row, row + 1:], x[row + 1:])
+        x[row] = (z[row] - s) / U[row, row]
 
     return x
